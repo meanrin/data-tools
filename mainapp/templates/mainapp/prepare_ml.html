@@ -268,8 +268,10 @@
         new_ans = '<h5>RESULTS:</h5>';
 
         if(response.task == 'bin'){
-            new_ans += '<div id="curve_chart" style="width: 900px; height: 500px"></div>';
-            new_ans += generate_binary(response.scores);
+            chart_div = '<div id="curve_chart" style="width: 900px; height: 500px"></div>';
+            box.innerHTML = chart_div;
+            generate_binary(response.scores);
+            new_ans += box.innerHTML;
         } else if(response.task == 'cat'){
             new_ans += '<h5>Confusion matrix:</h5>';
             new_ans += generate_categorical(response.scores);

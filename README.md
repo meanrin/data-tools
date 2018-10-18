@@ -5,4 +5,4 @@ The small project that can be used to analyze data frames. You can use it to get
 
 pip3 install -r requirements.txt
 
-python manage.py runserver
+python3 manage.py runserver

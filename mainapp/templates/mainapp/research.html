@@ -1,0 +1,130 @@
+{% extends 'mainapp/layout.html' %}
+
+{% block content %}
+    <script>
+
+
+        console.log(22);
+
+        {% for c, value in numeric_values.items %}
+            var data_{{c}} = [
+                ['Value'],
+                {% for v in value %}
+                [{{v}}],
+                {% endfor %}
+            ];
+        {% endfor %}
+
+        {% for c, c_value in cat_values.items %}
+            var data_{{c}} = [
+                ['Name', 'Count'],
+                {% for i, v in c_value.items %}
+                ["{{i}}", {{v}}],
+                {% endfor %}
+            ];
+        {% endfor %}
+    </script>
+
+    <div class="row">
+        <div class="col s12">
+
+          <ul class="tabs">
+            {% for c in column_names %}
+                <li class="tab"><a href="#col_{{c}}" onclick=drawChart(data_{{c}})>{{c}}</a></li>
+            {% endfor %}
+          </ul>
+
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col s2">
+        {% for c, d in column_description.items %}
+              <div id="col_{{c}}">
+                {% for description, value in d.items %}
+                  <p> {{description}}: {{value}}</p>
+                {% endfor %}
+              </div>
+        {% endfor %}
+        </div>
+
+        <div class="col s10">
+            <div id="chart_div" style="height:315px"></div>
+        </div>
+
+    </div>
+
+    <!--{% for c in column_names %}-->
+    <!--<p>-->
+    <!--<label>-->
+        <!--<input type="checkbox" checked="checked" />-->
+        <!--<span>{{c}}</span>-->
+    <!--</label>-->
+    <!--</p>-->
+    <!--{% endfor %}-->
+
+    <h5>Correlation</h5>
+
+    <table class="highlight">
+        <tbody>
+        <tr>
+            <th></th>
+        {% for c in correlation.keys %}
+            <th><b>{{c}}</b></th>
+        {% endfor %}
+        </tr>
+        {% for c, values in correlation.items %}
+        <tr>
+            <th><b>{{c}}</b></th>
+            {% for v in values %}
+            <th>{{v}}</th>
+            {% endfor %}
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <!--window.location.href.split('/').slice(-1)[0]-->
+    <div class="container center">
+    <a id="ml_button" class="waves-effect waves-light btn" >Machine Learning Page</a>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var elems = document.querySelectorAll('ul.tabs');
+            console.log(elems);
+            var instances = M.Tabs.init(elems,
+                {
+                    duration: 200, onShow: null,
+                }
+            );
+        });
+
+        filename = window.location.href.split('/').slice(-1)[0]
+        document.getElementById('ml_button').setAttribute('href',  '../ml/' + filename);
+    </script>
+
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script type="text/javascript">
+      google.charts.load("current", {packages:["corechart"]});
+      google.charts.setOnLoadCallback(() => {drawChart(data_{{column_names | first}})});
+
+      function drawChart(data) {
+        data = google.visualization.arrayToDataTable(data);
+        var chart_options = {
+          title: 'Data distribution',
+          legend: { position: 'none' },
+          histogram: { hideBucketItems: true},
+          vAxis: { scaleType: 'mirrorLog' },
+        };
+        if(data.Z() == 2) {
+            var chart = new google.visualization.BarChart(document.getElementById('chart_div'));
+        } else if(data.Z() == 1) {
+            var chart = new google.visualization.Histogram(document.getElementById('chart_div'));
+        }
+        chart.draw(data, chart_options);
+      }
+    </script>
+
+
+
+
+{% endblock %}

@@ -1,0 +1,23 @@
+{% extends 'mainapp/layout.html' %}
+
+{% load static %}
+
+{% block content %}
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="file" name="myfile">
+    <button type="submit">Upload</button>
+  </form>
+
+    {% if new_file %}
+        <p class="center-align green lighten-4">"{{new_file}}" successfully uploaded</p>
+    {% endif %}
+
+  {% if uploaded_files %}
+    <ul class="collection">
+      {% for f in uploaded_files %}
+        <li class="collection-item"><a href="/description/{{f}}">{{f}}</a></li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+{% endblock %}

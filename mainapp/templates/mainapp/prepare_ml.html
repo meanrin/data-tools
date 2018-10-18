@@ -1,0 +1,366 @@
+{% extends 'mainapp/layout.html' %}
+
+{% block content %}
+
+<p>To Categorical — convert to categorical lables</p>
+<p>Nulls — Fill nulls with some value</p>
+<p>Rescale Type — what type of scale to use on data</p>
+<p>№bins — if Rescale Type is "Divide into bins" you can specify amount of bins to divide in</p>
+<p>Use Type: <br>
+&emsp; input — use this column as input (X) variable <br>
+&emsp; target — use this column as target (Y) variable. Only one target column can be added used at once <br>
+&emsp; exclude — drop column from model
+</p>
+
+<div class="row">
+<div class="col s12">
+<h5>Numeric columns</h5>
+<table>
+    <thead>
+          <tr>
+              <th>Name</th>
+              <th>To Categorical</th>
+              <th>Nulls</th>
+              <th>Rescale Type</th>
+              <th>№bins</th>
+              <th>Use Type</th>
+          </tr>
+        </thead>
+    <tbody>
+    {% for column, type in column_type.items %}
+        {% if type == 'number' %}
+        <tr>
+            <th><div style="overflow: scroll; width: 130px">{{column}}</div></th>
+
+            <th>
+                <div class="input-field">
+                <p>
+                  <label>
+                    <input id="cat_{{column}}" type="checkbox" onclick="toCategorical('{{column}}')"/>
+                    <span style="position: absolute; top: -26px"></span>
+                  </label>
+                </p>
+                </div>
+            </th>
+
+            <th>
+            <div>
+            <select id="nulls_{{column}}">
+                <option value="mean" selected>Mean</option>
+                <option value="median">Median</option>
+                <option value="mode">Mode</option>
+            </select>
+            </div>
+            </th>
+
+            <th>
+            <div >
+            <select id="scale_{{column}}" onchange="change_scale('{{column}}')">
+                <option value="norm" selected>Normalize</option>
+                <option value="stan">Standardize</option>
+                <option value="bins">Divide into bins</option>
+                <option value="log">Use Log Scale</option>
+                <option value="none">None</option>
+            </select>
+            </div>
+            </th>
+
+            <th>
+            <div class="input-field">
+                <input id="bins_{{column}}" style="position: absolute; top: -34px" disabled />
+            </div>
+            </th>
+
+            <th>
+            <div>
+            <select id="type_{{column}}" onchange="change_type('{{column}}')">
+                <option value="input" selected>Input</option>
+                <option value="target">Target</option>
+                <option value="exclude">Exclude</option>
+            </select>
+            </div>
+            </th>
+
+
+        </tr>
+        {% endif %}
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+</div>
+<div class="row">
+<div class="col s4 ">
+<h5>Categorical columns</h5>
+<table>
+    <thead>
+          <tr>
+              <th>Name</th>
+              <!--<th>Nulls</th>-->
+              <th>Use Type</th>
+          </tr>
+        </thead>
+    <tbody>
+
+    {% for column, type in column_type.items %}
+    {% if type != 'number' %}
+    <tr>
+        <th><div style="overflow: scroll; width: 130px">{{column}}</div></th>
+
+        <th>
+            <div style="max-width: 150px">
+            <select id="type_{{column}}" onchange="change_type('{{column}}')">
+                <option value="input" selected>Input</option>
+                <option value="target">Target</option>
+                <option value="exclude">Exclude</option>
+            </select>
+            </div>
+        </th>
+
+
+    </tr>
+    {% endif %}
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+</div>
+
+<div class="row">
+
+<div class="col s1">
+    <h6>Model: </h6>
+</div>
+<div class="col s3">
+    <select id="model_type">
+        <option value="none" selected disabled>...</option>
+    </select>
+</div>
+</div>
+
+<a class="waves-effect waves-light btn" onclick="build_model()">Build model</a>
+
+<div id="ml_results">
+
+</div>
+
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var elems = document.querySelectorAll('.dropdown-trigger');
+        var instances = M.Dropdown.init(elems, undefined);
+    });
+    document.addEventListener('DOMContentLoaded', update_select);
+
+    function update_select() {
+        var elems = document.querySelectorAll('select');
+        var instances = M.FormSelect.init(elems, undefined);
+    };
+</script>
+
+<script>
+    column_type = { {% for column, type in column_type.items %} "{{column}}": "{{type}}", {% endfor %}
+    };
+
+    function toCategorical(name) {
+        is_cat = document.getElementById('cat_'+name).checked;
+
+        elements = [
+            document.getElementById('nulls_'+name),
+            document.getElementById('scale_'+name),
+            document.getElementById('bins_'+name),
+        ];
+        console.log(name);
+        console.log(is_cat);
+        elements.map(function(x) {x.disabled = is_cat;});
+        update_select();
+        console.log(elements);
+        change_scale(name);
+    }
+
+    function change_scale(name) {
+        box = document.getElementById('scale_'+name);
+        bins = document.getElementById('bins_'+name);
+        bins.disabled = (box.value != 'bins') || box.disabled ;
+    }
+    function change_type(name) {
+        box = document.getElementById('type_'+name);
+        other_boxes = Array.from(document.querySelectorAll('*[id^="type_"]')).filter(
+            (x) => {
+                return x.value == 'target' && x.id != 'type_'+name
+            }
+        );
+        console.log(other_boxes);
+        if (box.value == 'target') {
+            other_boxes.forEach(function(element) {
+                element.selectedIndex = 0;
+                M.FormSelect.init(element, undefined);
+            });
+            set_available_models(name);
+        }
+
+    }
+    function set_available_models(name) {
+        box = document.getElementById('model_type');
+
+        if(column_type[name] == 'number' && !document.getElementById('cat_'+name).checked) {
+            box.innerHTML = `
+                {% for model in regression_models %}
+                <option value="{{model}}">{{model}}</option>
+                {% endfor %}
+            `;
+        } else {
+            box.innerHTML = `
+                {% for model in classification_models %}
+                <option value="{{model}}">{{model}}</option>
+                {% endfor %}
+            `;
+        }
+
+        M.FormSelect.init(box, undefined);
+    }
+
+    function build_model() {
+        console.log('bm');
+
+        var xhr = new XMLHttpRequest();
+
+
+        var body =
+
+        {% for column, type in column_type.items %}
+            {% if type == 'number' %}
+                '&{{column}}='+encodeURIComponent([
+                    document.getElementById('cat_{{column}}').checked,
+                    document.getElementById('nulls_{{column}}').value,
+                    document.getElementById('scale_{{column}}').value,
+                    document.getElementById('bins_{{column}}').value,
+                    document.getElementById('type_{{column}}').value,
+                ]) +
+            {% else %}
+                '&{{column}}='+encodeURIComponent([
+                    document.getElementById('type_{{column}}').value,
+                ]) +
+            {% endif %}
+        {% endfor %}
+        '&__selected_model__='+encodeURIComponent(document.getElementById('model_type').value) +
+        '&__filename__=' + encodeURIComponent(window.location.href.split('/').slice(-1)[0])
+        ;
+
+        //var body = 'name=' + encodeURIComponent('aa') +
+        //  '&surname=' + encodeURIComponent('aa');
+
+        xhr.open("POST", 'submit', true);
+        xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+
+        xhr.onreadystatechange = function() {
+            if (this.readyState == 4 && this.status == 200) {
+                console.log(xhr.response);
+                show_results(JSON.parse(xhr.response));
+            }
+        };
+
+        xhr.send(body);
+    }
+
+    function show_results(response) {
+        box = document.getElementById('ml_results');
+        new_ans = '<h5>RESULTS:</h5>';
+
+        if(response.task == 'bin'){
+            new_ans += '<div id="curve_chart" style="width: 900px; height: 500px"></div>';
+            new_ans += generate_binary(response.scores);
+        } else if(response.task == 'cat'){
+            new_ans += '<h5>Confusion matrix:</h5>';
+            new_ans += generate_categorical(response.scores);
+        } else if(response.task == 'reg'){
+            new_ans += generate_regression(response.scores);
+        }
+
+        box.innerHTML = new_ans;
+    }
+    function generate_regression(scores) {
+        answer = '';
+        answer += '<thead><tr>';
+        answer += '<th>Metric</th><th>Value</th>';
+        answer += '</tr></thead>';
+
+        Object.keys(scores).forEach(function(key) {
+            answer += '<tr>';
+            answer += '<th>' + key + '</th>';
+            answer += '<th>' + scores[key] + '</th>';
+            answer += '</tr>';
+        });
+
+        answer += '</tbody>';
+
+        return '<table>' + answer + '</table>'
+    }
+    function generate_categorical(scores) {
+        cf = scores.cf;
+        labels = scores.labels;
+        answer = '';
+
+        answer += '<thead><tr>';
+        answer += '<th></th>';
+        for(var i = 0; i < labels.length; i++) {
+            answer += '<th>' + labels[i] + '</th>';
+        }
+        answer += '</tr></thead>';
+
+        answer += '<tbody>';
+        for(var i = 0; i < cf.length; i++) {
+            answer += '<tr>';
+            answer += '<th>' + labels[i] + '</th>';
+            for(var j = 0; j < cf.length; j++) {
+                answer += '<th>' + cf[i][j] + '</th>';
+            }
+            answer += '</tr>';
+        }
+        answer += '</tbody>';
+
+        return '<table>' + answer + '</table>'
+    }
+
+</script>
+
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript">
+    google.charts.load("current", {packages:["corechart"]});
+
+    function generate_binary(scores) {
+        console.log(12);
+
+        var data = [["rc", "pr"]];
+        data = data.concat(scores["rc"].map(function(e, i) {
+          return [e, scores["pr"][i]];
+        }));
+        data = google.visualization.arrayToDataTable(data);
+        var options = {
+          title: 'Precision-recall curve',
+          curveType: 'function',
+          legend: {position: 'none'},
+          hAxis: {
+            title :'Recall',
+            viewWindow: {
+                min: 0,
+                max: 1
+            },
+          },
+          vAxis: {
+            title : 'Precision',
+            viewWindow: {
+                min: 0,
+                max: 1
+            },
+          },
+        };
+
+        var chart = new google.visualization.LineChart(document.getElementById('curve_chart'));
+
+        chart.draw(data, options);
+
+    }
+</script>
+
+{% endblock %}

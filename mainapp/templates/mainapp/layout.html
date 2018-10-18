@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    {% load static %}
+
+    <link rel="stylesheet" href="{% static 'mainapp/materialize.css'%}">
+    <script src="{% static 'mainapp/materialize.js'%}"></script>
+    <title>Django Test!</title>
+
+
+    <style>
+        $primary-color: color("materialize-blue", "lighten-2") !default;
+    </style>
+
+</head>
+<body>
+    <header class="container center-align">
+        <h1>Data Tools</h1>
+    </header>
+
+    <div class="container">
+        {% block content %}
+        {% endblock %}
+    </div>
+
+    <a href="/">Return to home</a>
+</body>
+
+</html>
